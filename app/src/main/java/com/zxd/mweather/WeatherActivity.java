@@ -1,16 +1,20 @@
 package com.zxd.mweather;
 
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
 import com.zxd.mweather.gson.Forecast;
 import com.zxd.mweather.gson.Weather;
 import com.zxd.mweather.util.Httputil;
@@ -48,9 +52,20 @@ public class WeatherActivity extends AppCompatActivity {
 
     private  SharedPreferences prefs;
 
+    //背景图
+    private ImageView bingPicImg;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        //将背景图和状态栏融合到一起
+        if(Build.VERSION.SDK_INT >= 21){
+            View decorView = getWindow().getDecorView();
+            decorView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    |View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            getWindow().setStatusBarColor(Color.TRANSPARENT);
+        }
         setContentView(R.layout.activity_weather);
 
         //初始化控件
@@ -71,6 +86,15 @@ public class WeatherActivity extends AppCompatActivity {
         carWashText=findViewById(R.id.car_wash_text);
         sportText=findViewById(R.id.sport_text);
 
+        //设置背景图
+        bingPicImg =findViewById(R.id.bing_pic_img);
+        String bingPic = prefs.getString("bing_pic",null);
+        if(bingPic != null){
+            Glide.with(this).load(bingPic).into(bingPicImg);
+        }else{
+            loadBingPic();
+        }
+
         String weatherString =prefs.getString("weather",null);
         if(weatherString != null){
             //如果又缓存时直接解析天气数据
@@ -82,6 +106,32 @@ public class WeatherActivity extends AppCompatActivity {
             weatherLayout.setVisibility(View.INVISIBLE);
             requestWeather(weatherId);
         }
+    }
+    //从服务器获取背景图
+    private void loadBingPic() {
+        String requestBingPic = "http://guolin.tech/api/bing_pic";
+        Httputil.sendOkHttpRequest(requestBingPic, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+        final String bingPic = response.body().string();
+        SharedPreferences.Editor editor = PreferenceManager
+                .getDefaultSharedPreferences(WeatherActivity.this)
+                .edit();
+        editor.putString("bing_pic",bingPic);
+        editor.apply();
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Glide.with(WeatherActivity.this).load(bingPic).into(bingPicImg);
+            }
+        });
+            }
+        });
     }
 
     //根据天气id请求城市天气信息
@@ -122,6 +172,7 @@ public class WeatherActivity extends AppCompatActivity {
                 });
             }
         });
+        loadBingPic();
     }
 
     /**
@@ -140,7 +191,7 @@ public class WeatherActivity extends AppCompatActivity {
         forecastLayout.removeAllViews();
         for(Forecast forecast : weather.forecastList){
             View view= LayoutInflater.from(this).inflate(R.layout.forecast_item
-            ,forecastLayout,false);
+                    ,forecastLayout,false);
             TextView dateText = view.findViewById(R.id.date_text);
             TextView infoText = view.findViewById(R.id.info_text);
             TextView maxText = view.findViewById(R.id.max_text);
