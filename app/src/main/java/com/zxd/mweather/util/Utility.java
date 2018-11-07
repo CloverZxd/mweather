@@ -2,9 +2,11 @@ package com.zxd.mweather.util;
 
 import android.text.TextUtils;
 
+import com.google.gson.Gson;
 import com.zxd.mweather.db.City;
 import com.zxd.mweather.db.County;
 import com.zxd.mweather.db.Province;
+import com.zxd.mweather.gson.Weather;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -82,4 +84,19 @@ public class Utility {
         return false;
     }
 
+    /**
+     * 将返回得JSON数据解析成weather实体类
+     */
+
+    public static Weather HandleWeatherResponse(String response){
+        try {
+            JSONObject jsonObject = new JSONObject(response);
+            JSONArray jsonArray = jsonObject.getJSONArray("HeWeather");
+            String weatherContent = jsonArray.getJSONObject(0).toString();
+            return new Gson().fromJson(weatherContent,Weather.class);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return  null;
+    }
 }
